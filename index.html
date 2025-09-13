@@ -1,0 +1,200 @@
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Boyz Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2196F3">
+
+  <!-- iOS support -->
+  <link rel="apple-touch-icon" href="boyz-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #f7f7f7; }
+    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; text-align: center; }
+    .hero { text-align: center; margin-bottom: 20px; }
+    .hero img { max-width: 180px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 1rem; }
+    .day { background: #fff; border: 1px solid #ccc; padding: 15px; text-align: center; cursor: pointer; border-radius: 8px; user-select: none; transition: background 0.2s; }
+    .day.mine { background: #2196F3; color: #fff; }
+    .day.her { background: #9C27B0; color: #fff; }
+    .summary { margin-top: 20px; font-size: 1.1rem; }
+    .legend { display: flex; justify-content: center; gap: 15px; margin: 10px 0 20px 0; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-color { width: 16px; height: 16px; border-radius: 4px; }
+    button { margin-top: 15px; padding: 10px 15px; border: none; border-radius: 8px; background: #333; color: white; cursor: pointer; display: block; }
+    button + button { margin-top: 10px; }
+    button:hover { background: #555; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <img src="boyz.jpg" alt="Our Boyz" />
+    <h1>🐾 Boyz Tracker</h1>
+  </div>
+
+  <label for="month">Select Month: </label>
+  <input type="month" id="month" />
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:#2196F3;"></div> Me</div>
+    <div class="legend-item"><div class="legend-color" style="background:#9C27B0;"></div> Her</div>
+  </div>
+
+  <div id="calendar" class="calendar"></div>
+
+  <div class="summary">
+    <p><strong>My Days (Blue):</strong> <span id="myDays">0</span></p>
+    <p><strong>Her Days (Purple):</strong> <span id="herDays">0</span></p>
+  </div>
+
+  <button id="downloadBtn">⬇️ Download Report (CSV)</button>
+  <button id="shareBtn">📤 Share Report</button>
+
+  <script>
+    const monthPicker = document.getElementById("month");
+    const calendarDiv = document.getElementById("calendar");
+    const myDaysEl = document.getElementById("myDays");
+    const herDaysEl = document.getElementById("herDays");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const shareBtn = document.getElementById("shareBtn");
+
+    let selectedDays = JSON.parse(localStorage.getItem("boyzData")) || {}; 
+    let currentDate = new Date();
+
+    function setMonthInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      monthPicker.value = `${year}-${month}`;
+    }
+
+    setMonthInput(currentDate);
+    renderCalendar(currentDate);
+
+    monthPicker.addEventListener("change", (e) => {
+      const [yearStr, monthStr] = e.target.value.split("-");
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10) - 1;
+      currentDate = new Date(year, month, 1);
+      renderCalendar(currentDate);
+    });
+
+    function renderCalendar(date) {
+      calendarDiv.innerHTML = "";
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 0; i < firstDay; i++) {
+        const emptyDiv = document.createElement("div");
+        calendarDiv.appendChild(emptyDiv);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayDiv = document.createElement("div");
+        dayDiv.textContent = day;
+        dayDiv.classList.add("day");
+
+        const key = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        if (selectedDays[key] === "me") {
+          dayDiv.classList.add("mine");
+        } else if (selectedDays[key] === "her") {
+          dayDiv.classList.add("her");
+        }
+
+        dayDiv.addEventListener("click", () => {
+          const current = selectedDays[key];
+          if (!current) {
+            selectedDays[key] = "me";
+          } else if (current === "me") {
+            selectedDays[key] = "her";
+          } else {
+            delete selectedDays[key];
+          }
+          saveData();
+          renderCalendar(currentDate);
+        });
+
+        calendarDiv.appendChild(dayDiv);
+      }
+
+      updateSummary(daysInMonth);
+    }
+
+    function updateSummary(daysInMonth) {
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth()+1).padStart(2,'0');
+
+      let mineCount = 0;
+      let herCount = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const key = `${year}-${month}-${String(day).padStart(2,'0')}`;
+        if (selectedDays[key] === "me") mineCount++;
+        if (selectedDays[key] === "her") herCount++;
+      }
+
+      myDaysEl.textContent = mineCount;
+      herDaysEl.textContent = herCount;
+    }
+
+    function saveData() {
+      localStorage.setItem("boyzData", JSON.stringify(selectedDays));
+    }
+
+    function generateCSV() {
+      let csv = "Date,WhoHasDogs\n";
+      for (let key in selectedDays) {
+        const who = selectedDays[key] === "me" ? "Rangel" : "Her";
+        csv += `${key},${who}\n`;
+      }
+      return csv;
+    }
+
+    function downloadReport() {
+      const csv = generateCSV();
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `boyz_tracker_${monthPicker.value}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function shareReport() {
+      const csv = generateCSV();
+      const file = new File([csv], `boyz_tracker_${monthPicker.value}.csv`, { type: "text/csv" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: "🐾 Boyz Tracker Report",
+            text: "Here’s the custody schedule for the boyz 🐶",
+            files: [file]
+          });
+        } catch (err) {
+          console.log("Sharing cancelled", err);
+        }
+      } else {
+        alert("Sharing not supported in this browser. Use Download instead.");
+      }
+    }
+
+    downloadBtn.addEventListener("click", downloadReport);
+    shareBtn.addEventListener("click", shareReport);
+
+    // Register Service Worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js");
+    }
+  </script>
+</body>
+</html>
