@@ -14,9 +14,9 @@
   h1{text-align:center;margin:10px 0;font-weight:500;font-family:"Helvetica Neue",Arial,sans-serif;}
   .legend{display:flex;justify-content:center;gap:60px;margin:12px 0 6px 0;}
   .legend-item{text-align:center;font-weight:700;}
-  .legend-paws span{font-size:1.4rem;display:inline-block;filter:grayscale(1) brightness(0) invert(0);}
-  .legend-rp .legend-paws span{filter:drop-shadow(0 0 0 var(--rp)) saturate(500%);}
-  .legend-vr .legend-paws span{filter:drop-shadow(0 0 0 var(--vr)) saturate(500%);}
+  .legend-paws span{font-size:1.4rem;display:inline-block;}
+  .legend-rp .legend-paws span{filter:brightness(0) saturate(100%) invert(32%) sepia(97%) saturate(2859%) hue-rotate(201deg) brightness(95%) contrast(97%);}
+  .legend-vr .legend-paws span{filter:brightness(0) saturate(100%) invert(15%) sepia(94%) saturate(3923%) hue-rotate(284deg) brightness(87%) contrast(99%);}
   .summary{text-align:center;margin:8px 0 10px 0;font-weight:600;}
   .controls{display:flex;justify-content:center;gap:10px;align-items:center;margin:6px 0 6px 0;}
   input[type="month"]{padding:4px 6px;font-size:0.95rem;}
@@ -27,8 +27,9 @@
        height:56px;overflow:hidden;cursor:pointer;}
   .date-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
             font-weight:700;font-size:1.65rem;z-index:2;color:#222;pointer-events:none;}
-  .paw-mark{position:absolute;font-size:1.4rem;pointer-events:none;
-            filter:drop-shadow(0 0 0 var(--rp)) saturate(500%);}
+  .paw-mark{position:absolute;font-size:1.4rem;pointer-events:none;}
+  .paw-blue{filter:brightness(0) saturate(100%) invert(32%) sepia(97%) saturate(2859%) hue-rotate(201deg) brightness(95%) contrast(97%);}
+  .paw-purple{filter:brightness(0) saturate(100%) invert(15%) sepia(94%) saturate(3923%) hue-rotate(284deg) brightness(87%) contrast(99%);}
   .buttons{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
   button{background:#333;color:#fff;border:none;border-radius:10px;padding:10px 14px;
          font-size:1rem;cursor:pointer;}
@@ -117,14 +118,11 @@ function render(date){
     if(selected[key]){
       if(selected[key]==='rp') rpCount++; else vrCount++;
       if(!pawPositions[key]) pawPositions[key]=generatePositions();
-      const filter=selected[key]==='rp'
-        ? 'drop-shadow(0 0 0 var(--rp)) saturate(500%)'
-        : 'drop-shadow(0 0 0 var(--vr)) saturate(500%)';
+      const pawClass = selected[key]==='rp' ? 'paw-blue' : 'paw-purple';
       pawPositions[key].forEach(p=>{
         const mark=document.createElement('div');
-        mark.className='paw-mark';
+        mark.className='paw-mark ' + pawClass;
         mark.textContent='🐾';
-        mark.style.filter=filter;
         mark.style.top=p.top+'%';
         mark.style.left=p.left+'%';
         cell.appendChild(mark);
