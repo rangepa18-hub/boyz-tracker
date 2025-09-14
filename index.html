@@ -6,234 +6,599 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
-<!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-  import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAJsOKDu8IOLVncSMryt0YQ35yM-Tg_n-k",
-    authDomain: "boyz-calendar.firebaseapp.com",
-    projectId: "boyz-calendar",
-    storageBucket: "boyz-calendar.firebasestorage.app",
-    messagingSenderId: "636214260840",
-    appId: "1:636214260840:web:1bbb52bcfb97261ff9b7dd",
-    measurementId: "G-YK0YWE59WX"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  window.db = getFirestore(app);
-</script>
-
 <style>
-  /* your same CSS from before goes here (unchanged) */
+  :root{ --rp:#2196F3; --vr:#9C27B0; }
+  body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+        background:linear-gradient(180deg,#f2f7ff,#fff); margin:20px; color:#222; }
+  .header{ display:flex;justify-content:center;align-items:center;gap:32px;margin-bottom:8px;}
+  .header img{ width:120px;height:120px;object-fit:cover;border-radius:0;box-shadow:0 2px 6px rgba(0,0,0,.2);}
+  h1{text-align:center;margin:10px 0;font-weight:500;font-family:"Helvetica Neue",Arial,sans-serif;}
+  .legend{display:flex;justify-content:center;gap:60px;margin:12px 0 6px 0;}
+  .legend-item{text-align:center;font-weight:700;}
+  .legend-paws img{width:22px;height:22px;}
+  .summary{text-align:center;margin:8px 0 10px 0;font-weight:600;}
+  .controls{display:flex;justify-content:center;gap:10px;align-items:center;margin:6px 0 6px 0;}
+  input[type="month"]{padding:4px 6px;font-size:0.95rem;}
+  .weekdays{display:grid;grid-template-columns:repeat(7,1fr);margin-top:8px;}
+  .day-name{text-align:center;font-weight:600;font-size:0.9rem;color:#444;}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:4px;}
+  .day{position:relative;background:#fff;border:1px solid #d7d7d7;border-radius:12px;
+       height:56px;overflow:hidden;cursor:pointer;}
+  .date-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+            font-weight:700;font-size:1.2rem;z-index:2;color:#222;pointer-events:none;}
+  .paw-mark{
+    position:absolute;width:9px;height:9px;background-size:contain;background-repeat:no-repeat;
+    pointer-events:none;
+  }
+  .paw-blue{background-image:url('paw-blue.png');}
+  .paw-purple{background-image:url('paw-purple.png');}
+  .day-thumb{
+    position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:4px;object-fit:cover;z-index:3;
+  }
+  .day-pin{
+    position:absolute;top:2px;left:2px;font-size:0.8rem;z-index:3;
+  }
+  .buttons{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  button{background:#333;color:#fff;border:none;border-radius:10px;padding:10px 14px;
+         font-size:1rem;cursor:pointer;}
+  button:hover{background:#555;}
+  
+  /* Auth overlay */
+  .auth-overlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+    display:flex;justify-content:center;align-items:center;z-index:1000;
+  }
+  .auth-card{
+    background:#fff;padding:32px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    text-align:center;max-width:400px;width:90%;
+  }
+  .auth-card h2{margin-bottom:20px;color:#333;}
+  .auth-input{width:100%;padding:12px;margin:10px 0;border:2px solid #ddd;border-radius:8px;font-size:1rem;box-sizing:border-box;}
+  .auth-input:focus{outline:none;border-color:#667eea;}
+  .auth-btn{background:#667eea;color:#fff;padding:12px 24px;border:none;border-radius:8px;
+           font-size:1rem;cursor:pointer;width:100%;margin-top:10px;}
+  .auth-btn:hover{background:#5a67d8;}
+  .auth-btn:disabled{background:#ccc;cursor:not-allowed;}
+  .auth-error{color:#e53e3e;margin-top:10px;font-size:0.9rem;}
+  .loading{display:none;margin:20px 0;color:#666;}
+  
+  /* Status indicator */
+  .status{position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#fff;
+          padding:8px 12px;border-radius:20px;font-size:0.8rem;z-index:50;}
+  .status.online{background:rgba(34,197,94,0.9);}
+  .status.offline{background:rgba(239,68,68,0.9);}
+
+  #popup{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:#fff;border-radius:12px;padding:16px;width:80%;max-width:300px;
+    box-shadow:0 4px 10px rgba(0,0,0,.3);z-index:100;display:none;
+  }
+  #popup input[type="file"]{margin:6px 0;}
+  #popup textarea{width:100%;height:60px;margin:6px 0;resize:none;border:1px solid #ddd;border-radius:4px;padding:8px;box-sizing:border-box;}
+  #popup select{width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;}
+  #popup button{margin-top:8px;width:100%;}
+  #overlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,.4);z-index:99;display:none;
+  }
+  #photoView, #noteView {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,.85);z-index:200;display:none;
+    justify-content:center;align-items:center;flex-direction:column;
+    padding:20px;box-sizing:border-box;text-align:center;
+  }
+  #photoView img{
+    max-width:90%;max-height:70%;border-radius:10px;
+  }
+  #photoNote {
+    color:#fff;
+    margin-top:12px;
+    max-width:90%;
+    text-align:center;
+    font-size:1rem;
+    white-space:pre-wrap;
+  }
+  #noteText {
+    color:#fff;
+    font-size:1.2rem;
+    white-space:pre-wrap;
+    max-width:90%;
+  }
+  #closePhoto,#closeNote {
+    margin-top:20px;background:#fff;color:#333;border:none;
+    padding:8px 14px;border-radius:8px;font-size:1rem;cursor:pointer;
+  }
+
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
-<!-- your same full HTML layout from before goes here (unchanged) -->
+<!-- Auth Overlay -->
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-card">
+    <h2>🐾 Boyz Calendar Access</h2>
+    <p>Enter the access code to view the calendar</p>
+    <input type="password" id="accessCode" class="auth-input" placeholder="Access code" />
+    <button id="authBtn" class="auth-btn">Access Calendar</button>
+    <div id="authError" class="auth-error"></div>
+    <div id="loading" class="loading">Connecting...</div>
+  </div>
+</div>
+
+<!-- Status Indicator -->
+<div id="status" class="status">Connecting...</div>
+
+<!-- Main App (hidden until authenticated) -->
+<div id="app" class="hidden">
+  <div id="captureArea">
+    <div class="header">
+      <img src="LEO.jpg" alt="Leo" />
+      <img src="boyz.jpg" alt="Leo & Benny" />
+      <img src="BENNY.jpg" alt="Benny" />
+    </div>
+
+    <h1>Boyz Calendar</h1>
+
+    <div class="legend">
+      <div class="legend-item">
+        RP
+        <div class="legend-paws">
+          <img src="paw-blue.png"><img src="paw-blue.png">
+        </div>
+      </div>
+      <div class="legend-item">
+        VR
+        <div class="legend-paws">
+          <img src="paw-purple.png"><img src="paw-purple.png">
+        </div>
+      </div>
+    </div>
+
+    <div class="summary" id="summary">Days: 0 | Days: 0</div>
+
+    <div class="controls">
+      <label for="month">Select Month:</label>
+      <input type="month" id="month" />
+    </div>
+
+    <div class="weekdays">
+      <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div>
+      <div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>
+    </div>
+
+    <div id="calendar" class="calendar"></div>
+  </div>
+
+  <div class="buttons">
+    <button id="reportBtn">📸 Screenshot Report</button>
+    <button id="yearBtn">📊 Yearly Summary</button>
+  </div>
+</div>
+
+<div id="overlay"></div>
+<div id="popup">
+  <label>Who:</label>
+  <select id="ownerSel"><option value="rp">RP</option><option value="vr">VR</option></select>
+  <label>Message:</label>
+  <textarea id="noteInput" placeholder="Add a note..."></textarea>
+  <label>Photo:</label>
+  <input type="file" id="photoInput" accept="image/*">
+  <button id="saveBtn">Save</button>
+</div>
+
+<div id="photoView">
+  <img id="photoFull" src="">
+  <div id="photoNote"></div>
+  <button id="closePhoto">Close</button>
+</div>
+
+<div id="noteView">
+  <div id="noteText"></div>
+  <button id="closeNote">Close</button>
+</div>
 
 <script type="module">
-import { doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
-const cal=document.getElementById('calendar');
-const monthPicker=document.getElementById('month');
-const summary=document.getElementById('summary');
-const popup=document.getElementById('popup');
-const overlay=document.getElementById('overlay');
+// 🔒 CHANGE THIS ACCESS CODE TO YOUR SECRET PASSWORD!
+const ACCESS_CODE = "boyz";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAJsOKDu8IOLVncSMryt0YQ35yM-Tg_n-k",
+  authDomain: "boyz-calendar.firebaseapp.com",
+  projectId: "boyz-calendar",
+  storageBucket: "boyz-calendar.firebasestorage.app",
+  messagingSenderId: "636214260840",
+  appId: "1:636214260840:web:1bbb52bcfb97261ff9b7dd",
+  measurementId: "G-YK0YWE59WX"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth();
 
 let selected = {};
 let pawPositions = {};
-let currentEditKey=null;
-let lockTimers={};
+let currentEditKey = null;
+let lockTimers = {};
+let isAuthenticated = false;
+let unsubscribe = null;
 
-const sharedDoc = doc(db, "shared", "calendar");
+// DOM elements
+const authOverlay = document.getElementById('authOverlay');
+const accessCodeInput = document.getElementById('accessCode');
+const authBtn = document.getElementById('authBtn');
+const authError = document.getElementById('authError');
+const loading = document.getElementById('loading');
+const status = document.getElementById('status');
+const appDiv = document.getElementById('app');
+const cal = document.getElementById('calendar');
+const monthPicker = document.getElementById('month');
+const summary = document.getElementById('summary');
+const popup = document.getElementById('popup');
+const overlay = document.getElementById('overlay');
 
-// 🔁 Live sync from Firestore
-onSnapshot(sharedDoc, (snap)=>{
-  if(snap.exists()){
-    const data = snap.data();
-    selected = data.selected || {};
-    pawPositions = data.pawPositions || {};
-    render(new Date(monthPicker.value.split('-')[0], monthPicker.value.split('-')[1]-1, 1));
-  } else {
-    render(new Date());
+// Authentication flow
+authBtn.addEventListener('click', handleAuth);
+accessCodeInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') handleAuth();
+});
+
+async function handleAuth() {
+  const code = accessCodeInput.value.trim();
+  if (!code) {
+    showAuthError('Please enter an access code');
+    return;
+  }
+  
+  if (code !== ACCESS_CODE) {
+    showAuthError('Invalid access code');
+    return;
+  }
+  
+  loading.style.display = 'block';
+  authBtn.disabled = true;
+  authError.textContent = '';
+  
+  try {
+    await signInAnonymously(auth);
+    sessionStorage.setItem('boyz_auth', 'true');
+  } catch (error) {
+    console.error('Auth error:', error);
+    showAuthError('Connection failed. Please try again.');
+    loading.style.display = 'none';
+    authBtn.disabled = false;
+  }
+}
+
+function showAuthError(message) {
+  authError.textContent = message;
+  setTimeout(() => authError.textContent = '', 5000);
+}
+
+// Firebase auth state listener
+onAuthStateChanged(auth, (user) => {
+  if (user && sessionStorage.getItem('boyz_auth')) {
+    isAuthenticated = true;
+    authOverlay.classList.add('hidden');
+    appDiv.classList.remove('hidden');
+    updateStatus('online', 'Connected');
+    initializeCalendar();
+  } else if (!user && isAuthenticated) {
+    updateStatus('offline', 'Disconnected');
   }
 });
 
-async function save(){
-  await setDoc(sharedDoc,{selected,pawPositions});
+function updateStatus(type, text) {
+  status.className = `status ${type}`;
+  status.textContent = text;
 }
 
-const now=new Date();
-monthPicker.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-render(new Date(now.getFullYear(), now.getMonth(), 1));
+// Initialize calendar
+function initializeCalendar() {
+  const now = new Date();
+  monthPicker.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  
+  // Listen for real-time updates
+  const sharedDoc = doc(db, "shared", "calendar");
+  unsubscribe = onSnapshot(sharedDoc, (snap) => {
+    try {
+      if (snap.exists()) {
+        const data = snap.data();
+        selected = data.selected || {};
+        pawPositions = data.pawPositions || {};
+        render(new Date(monthPicker.value.split('-')[0], monthPicker.value.split('-')[1]-1, 1));
+        updateStatus('online', 'Live sync');
+      } else {
+        // First time setup
+        render(new Date(monthPicker.value.split('-')[0], monthPicker.value.split('-')[1]-1, 1));
+        updateStatus('online', 'Ready');
+      }
+    } catch (error) {
+      console.error("Render error:", error);
+      updateStatus('offline', 'Display error');
+    }
+  }, (error) => {
+    console.error("Sync error:", error);
+    updateStatus('offline', 'Sync error');
+  });
 
-monthPicker.addEventListener('change', e=>{
-  const [y,m]=e.target.value.split('-');
-  render(new Date(parseInt(y,10), parseInt(m,10)-1, 1));
-});
+  render(new Date(now.getFullYear(), now.getMonth(), 1));
+  setupEventListeners();
+}
 
-function generatePositions(){
-  const bases=[{top:25,left:30},{top:25,left:70},{top:65,left:30},{top:65,left:70}];
-  return bases.map(b=>({
+async function save() {
+  if (!isAuthenticated) return;
+  
+  try {
+    const sharedDoc = doc(db, "shared", "calendar");
+    await setDoc(sharedDoc, { selected, pawPositions });
+    updateStatus('online', 'Saved');
+  } catch (error) {
+    console.error("Save error:", error);
+    updateStatus('offline', 'Save failed');
+  }
+}
+
+function generatePositions() {
+  const bases = [{top:25,left:30},{top:25,left:70},{top:65,left:30},{top:65,left:70}];
+  return bases.map(b => ({
     top: Math.max(15, Math.min(75, b.top + (Math.random()*8 - 4))),
     left: Math.max(15, Math.min(75, b.left + (Math.random()*8 - 4))),
     rot: Math.floor(Math.random()*40 - 20)
   }));
 }
 
-function render(date){
-  cal.innerHTML='';
-  const y=date.getFullYear(), m=date.getMonth();
-  const firstDay=new Date(y,m,1).getDay();
-  const daysInMonth=new Date(y,m+1,0).getDate();
-  for(let i=0;i<firstDay;i++) cal.appendChild(document.createElement('div'));
-  let rpCount=0, vrCount=0;
+function render(date) {
+  cal.innerHTML = '';
+  const y = date.getFullYear(), m = date.getMonth();
+  const firstDay = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  
+  for(let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
+  
+  let rpCount = 0, vrCount = 0;
 
-  for(let d=1;d<=daysInMonth;d++){
-    const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const cell=document.createElement('div');
-    cell.className='day';
+  for(let d = 1; d <= daysInMonth; d++) {
+    const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cell = document.createElement('div');
+    cell.className = 'day';
 
-    const num=document.createElement('div');
-    num.className='date-num';
-    num.textContent=d;
+    const num = document.createElement('div');
+    num.className = 'date-num';
+    num.textContent = d;
     cell.appendChild(num);
 
     const entry = selected[key];
-    if(entry){
-      if(entry.owner==='rp') rpCount++; else if(entry.owner==='vr') vrCount++;
-      if(!pawPositions[key]) pawPositions[key]=generatePositions();
-      const pawClass = entry.owner==='rp' ? 'paw-blue' : 'paw-purple';
-      pawPositions[key].forEach(p=>{
-        const mark=document.createElement('div');
-        mark.className='paw-mark ' + pawClass;
-        mark.style.top=p.top+'%';
-        mark.style.left=p.left+'%';
-        mark.style.transform=`rotate(${p.rot}deg)`;
+    if(entry) {
+      if(entry.owner === 'rp') rpCount++; 
+      else if(entry.owner === 'vr') vrCount++;
+      
+      if(!pawPositions[key]) pawPositions[key] = generatePositions();
+      const pawClass = entry.owner === 'rp' ? 'paw-blue' : 'paw-purple';
+      
+      pawPositions[key].forEach(p => {
+        const mark = document.createElement('div');
+        mark.className = 'paw-mark ' + pawClass;
+        mark.style.top = p.top + '%';
+        mark.style.left = p.left + '%';
+        mark.style.transform = `rotate(${p.rot}deg)`;
         cell.appendChild(mark);
       });
-      if(entry.photo){
-        const img=document.createElement('img');
-        img.src=entry.photo;
-        img.className='day-thumb';
+
+      if(entry.photo) {
+        const img = document.createElement('img');
+        img.src = entry.photo;
+        img.className = 'day-thumb';
         cell.appendChild(img);
-      } else if(entry.note){
-        const pin=document.createElement('div');
-        pin.className='day-pin';
-        pin.textContent='📌';
+      } else if(entry.note) {
+        const pin = document.createElement('div');
+        pin.className = 'day-pin';
+        pin.textContent = '📌';
         cell.appendChild(pin);
       }
     }
 
-    let pressTimer;
-    cell.addEventListener('touchstart',()=>{ 
-      if(entry?.locked){
-        pressTimer=setTimeout(()=>{
-          if(confirm('Unlock this day to edit again?')){
-            selected[key].locked=false;
-            save(); render(new Date(y,m,1));
-          }
-        },1500);
-      } else {
-        pressTimer=setTimeout(()=>openPopup(key),700);
-      }
-    });
-    cell.addEventListener('touchend',()=>clearTimeout(pressTimer));
-    cell.addEventListener('mousedown',()=>{ 
-      if(entry?.locked){
-        pressTimer=setTimeout(()=>{
-          if(confirm('Unlock this day to edit again?')){
-            selected[key].locked=false;
-            save(); render(new Date(y,m,1));
-          }
-        },1500);
-      } else {
-        pressTimer=setTimeout(()=>openPopup(key),700);
-      }
-    });
-    cell.addEventListener('mouseup',()=>clearTimeout(pressTimer));
-
-    cell.addEventListener('click',()=>{
-      if(entry?.locked){
-        if(entry.photo){
-          document.getElementById('photoFull').src = entry.photo;
-          document.getElementById('photoNote').textContent = entry.note || '';
-          document.getElementById('photoView').style.display='flex';
-        } else if(entry.note){
-          document.getElementById('noteText').textContent = entry.note;
-          document.getElementById('noteView').style.display='flex';
-        }
-        return;
-      }
-      if(!selected[key]){
-        selected[key]={owner:'rp',note:'',photo:null,locked:false};
-        if(!pawPositions[key]) pawPositions[key]=generatePositions();
-      } else if(selected[key].owner==='rp'){
-        selected[key].owner='vr';
-        selected[key].locked=false;
-        if(!pawPositions[key]) pawPositions[key]=generatePositions();
-      } else {
-        delete selected[key];
-        delete pawPositions[key];
-      }
-      clearTimeout(lockTimers[key]);
-      lockTimers[key]=setTimeout(()=>{ if(selected[key]){selected[key].locked=true;save();}},5000);
-      save(); render(new Date(y,m,1));
-    });
-
+    setupDayInteractions(cell, key, entry, y, m);
     cal.appendChild(cell);
   }
-  summary.textContent=`Days: ${rpCount} | Days: ${vrCount}`;
+  
+  summary.textContent = `Days: ${rpCount} | Days: ${vrCount}`;
 }
 
-function openPopup(key){
-  currentEditKey=key;
-  const e=selected[key]||{owner:'rp',note:'',photo:null};
-  document.getElementById('ownerSel').value=e.owner;
-  document.getElementById('noteInput').value=e.note||'';
-  document.getElementById('photoInput').value='';
-  overlay.style.display='block'; popup.style.display='block';
-  setTimeout(()=>document.getElementById('noteInput').focus(),300);
-}
-overlay.onclick=()=>{popup.style.display='none';overlay.style.display='none';};
+function setupDayInteractions(cell, key, entry, y, m) {
+  let pressTimer;
+  
+  const startPress = () => {
+    if(entry?.locked) {
+      pressTimer = setTimeout(() => {
+        if(confirm('Unlock this day to edit again?')) {
+          selected[key].locked = false;
+          save();
+        }
+      }, 1500);
+    } else {
+      pressTimer = setTimeout(() => openPopup(key), 700);
+    }
+  };
+  
+  const endPress = () => clearTimeout(pressTimer);
+  
+  cell.addEventListener('touchstart', startPress);
+  cell.addEventListener('touchend', endPress);
+  cell.addEventListener('mousedown', startPress);
+  cell.addEventListener('mouseup', endPress);
 
-document.getElementById('saveBtn').onclick=()=>{
-  const owner=document.getElementById('ownerSel').value;
-  const note=document.getElementById('noteInput').value.trim();
-  const file=document.getElementById('photoInput').files[0];
-
-  const finalize=(photoData)=>{
-    selected[currentEditKey]={owner,note,photo:photoData||null,locked:false};
-    clearTimeout(lockTimers[currentEditKey]);
-    lockTimers[currentEditKey]=setTimeout(()=>{
-      if(selected[currentEditKey]){
-        selected[currentEditKey].locked=true;
+  cell.addEventListener('click', () => {
+    if(entry?.locked) {
+      if(entry.photo) {
+        document.getElementById('photoFull').src = entry.photo;
+        document.getElementById('photoNote').textContent = entry.note || '';
+        document.getElementById('photoView').style.display = 'flex';
+      } else if(entry.note) {
+        document.getElementById('noteText').textContent = entry.note;
+        document.getElementById('noteView').style.display = 'flex';
+      }
+      return;
+    }
+    
+    if(!selected[key]) {
+      selected[key] = {owner:'rp', note:'', photo:null, locked:false};
+      if(!pawPositions[key]) pawPositions[key] = generatePositions();
+    } else if(selected[key].owner === 'rp') {
+      selected[key].owner = 'vr';
+      selected[key].locked = false;
+      if(!pawPositions[key]) pawPositions[key] = generatePositions();
+    } else {
+      delete selected[key];
+      delete pawPositions[key];
+    }
+    
+    clearTimeout(lockTimers[key]);
+    lockTimers[key] = setTimeout(() => {
+      if(selected[key]) {
+        selected[key].locked = true;
         save();
       }
-    },5000);
+    }, 5000);
+    
     save();
-    popup.style.display='none';overlay.style.display='none';
-    render(new Date(monthPicker.value.split('-')[0],monthPicker.value.split('-')[1]-1,1));
+  });
+}
+
+function setupEventListeners() {
+  monthPicker.addEventListener('change', e => {
+    const [y,m] = e.target.value.split('-');
+    render(new Date(parseInt(y,10), parseInt(m,10)-1, 1));
+  });
+
+  overlay.onclick = () => {
+    popup.style.display = 'none';
+    overlay.style.display = 'none';
   };
 
-  if(file){
-    const reader=new FileReader();
-    reader.onload=()=>finalize(reader.result); // Base64
-    reader.readAsDataURL(file);
-  } else {
-    const existing=selected[currentEditKey]||{};
-    finalize(existing.photo||null);
-  }
-};
+  document.getElementById('saveBtn').onclick = () => {
+    const owner = document.getElementById('ownerSel').value;
+    const note = document.getElementById('noteInput').value.trim();
+    const file = document.getElementById('photoInput').files[0];
 
-document.getElementById('closePhoto').onclick = () => {
-  document.getElementById('photoView').style.display='none';
-};
-document.getElementById('closeNote').onclick = () => {
-  document.getElementById('noteView').style.display='none';
-};
+    const finalize = (photoData) => {
+      selected[currentEditKey] = {owner, note, photo: photoData || null, locked: false};
+      clearTimeout(lockTimers[currentEditKey]);
+      lockTimers[currentEditKey] = setTimeout(() => {
+        if(selected[currentEditKey]) {
+          selected[currentEditKey].locked = true;
+          save();
+        }
+      }, 5000);
+      save();
+      popup.style.display = 'none';
+      overlay.style.display = 'none';
+    };
+
+    if(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const maxW = 300;
+          const scale = maxW / img.width;
+          canvas.width = maxW;
+          canvas.height = img.height * scale;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          finalize(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const existing = selected[currentEditKey] || {};
+      finalize(existing.photo || null);
+    }
+  };
+
+  document.getElementById('closePhoto').onclick = () => {
+    document.getElementById('photoView').style.display = 'none';
+  };
+
+  document.getElementById('closeNote').onclick = () => {
+    document.getElementById('noteView').style.display = 'none';
+  };
+
+  // Screenshot functionality
+  document.getElementById('reportBtn').addEventListener('click', () => {
+    updateStatus('online', 'Creating screenshot...');
+    html2canvas(document.getElementById('captureArea'), {scale: 2, useCORS: true}).then(c => {
+      c.toBlob(b => {
+        const f = new File([b], 'boyz_calendar.png', {type: 'image/png'});
+        if(navigator.share && navigator.canShare && navigator.canShare({files: [f]})) {
+          navigator.share({files: [f], title: 'Boyz Calendar'});
+        } else {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(b);
+          a.download = 'boyz_calendar.png';
+          a.click();
+        }
+        updateStatus('online', 'Screenshot saved');
+      });
+    }).catch(error => {
+      console.error('Screenshot error:', error);
+      updateStatus('offline', 'Screenshot failed');
+    });
+  });
+
+  // CSV export
+  document.getElementById('yearBtn').addEventListener('click', () => {
+    try {
+      const totals = {};
+      for(const k in selected) {
+        const [y,m] = k.split('-');
+        const ym = `${y}-${m}`;
+        if(!totals[ym]) totals[ym] = {RP: 0, VR: 0};
+        if(selected[k].owner === 'rp') totals[ym].RP++;
+        else if(selected[k].owner === 'vr') totals[ym].VR++;
+      }
+      let csv = 'Year,Month,RP,VR\n';
+      Object.keys(totals).sort().forEach(ym => {
+        const [yy,mm] = ym.split('-');
+        csv += `${yy},${mm},${totals[ym].RP},${totals[ym].VR}\n`;
+      });
+      const blob = new Blob([csv], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'boyz_yearly_summary.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      updateStatus('online', 'Data exported');
+    } catch (error) {
+      console.error('Export error:', error);
+      updateStatus('offline', 'Export failed');
+    }
+  });
+}
+
+function openPopup(key) {
+  currentEditKey = key;
+  const e = selected[key] || {owner: 'rp', note: '', photo: null};
+  document.getElementById('ownerSel').value = e.owner;
+  document.getElementById('noteInput').value = e.note || '';
+  document.getElementById('photoInput').value = '';
+  overlay.style.display = 'block';
+  popup.style.display = 'block';
+  setTimeout(() => document.getElementById('noteInput').focus(), 300);
+}
+
+// Check if already authenticated on page load
+if (sessionStorage.getItem('boyz_auth')) {
+  signInAnonymously(auth);
+}
 </script>
 </body>
 </html>
