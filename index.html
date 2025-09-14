@@ -34,6 +34,9 @@
   .day-thumb{
     position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:4px;object-fit:cover;z-index:3;
   }
+  .day-pin{
+    position:absolute;top:2px;left:2px;font-size:0.8rem;z-index:3;
+  }
   .buttons{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
   button{background:#333;color:#fff;border:none;border-radius:10px;padding:10px 14px;
          font-size:1rem;cursor:pointer;}
@@ -49,6 +52,33 @@
   #overlay{
     position:fixed;top:0;left:0;width:100%;height:100%;
     background:rgba(0,0,0,.4);z-index:99;display:none;
+  }
+  #photoView, #noteView {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,.85);z-index:200;display:none;
+    justify-content:center;align-items:center;flex-direction:column;
+    padding:20px;box-sizing:border-box;text-align:center;
+  }
+  #photoView img{
+    max-width:90%;max-height:70%;border-radius:10px;
+  }
+  #photoNote {
+    color:#fff;
+    margin-top:12px;
+    max-width:90%;
+    text-align:center;
+    font-size:1rem;
+    white-space:pre-wrap;
+  }
+  #noteText {
+    color:#fff;
+    font-size:1.2rem;
+    white-space:pre-wrap;
+    max-width:90%;
+  }
+  #closePhoto,#closeNote {
+    margin-top:20px;background:#fff;color:#333;border:none;
+    padding:8px 14px;border-radius:8px;font-size:1rem;
   }
 </style>
 </head>
@@ -95,7 +125,7 @@
 
 <div class="buttons">
   <button id="reportBtn">📸 Screenshot Report</button>
-  <button id="yearBtn">📊 Yearly Report</button>
+  <button id="yearBtn">📊 Yearly Summary</button>
 </div>
 
 <div id="overlay"></div>
@@ -107,6 +137,17 @@
   <label>Photo:</label>
   <input type="file" id="photoInput" accept="image/*">
   <button id="saveBtn">Save</button>
+</div>
+
+<div id="photoView">
+  <img id="photoFull" src="">
+  <div id="photoNote"></div>
+  <button id="closePhoto">Close</button>
+</div>
+
+<div id="noteView">
+  <div id="noteText"></div>
+  <button id="closeNote">Close</button>
 </div>
 
 <script>
@@ -173,10 +214,14 @@ function render(date){
         img.src=entry.photo;
         img.className='day-thumb';
         cell.appendChild(img);
+      } else if(entry.note){
+        const pin=document.createElement('div');
+        pin.className='day-pin';
+        pin.textContent='📌';
+        cell.appendChild(pin);
       }
     }
 
-    // long press logic: unlock if locked (2.5s) or edit if unlocked (0.7s)
     let pressTimer;
     cell.addEventListener('touchstart',()=>{ 
       if(entry?.locked){
@@ -207,9 +252,13 @@ function render(date){
 
     cell.addEventListener('click',()=>{
       if(entry?.locked){
-        if(entry.photo && confirm('View this photo full size?')){
-          const w=window.open();
-          w.document.write(`<img src="${entry.photo}" style="width:100%">`);
+        if(entry.photo){
+          document.getElementById('photoFull').src = entry.photo;
+          document.getElementById('photoNote').textContent = entry.note || '';
+          document.getElementById('photoView').style.display='flex';
+        } else if(entry.note){
+          document.getElementById('noteText').textContent = entry.note;
+          document.getElementById('noteView').style.display='flex';
         }
         return;
       }
@@ -224,13 +273,8 @@ function render(date){
         delete selected[key];
         delete pawPositions[key];
       }
-
-      // start or reset lock timer
       clearTimeout(lockTimers[key]);
-      lockTimers[key]=setTimeout(()=>{
-        if(selected[key]){ selected[key].locked=true; save(); }
-      },5000);
-
+      lockTimers[key]=setTimeout(()=>{ if(selected[key]){selected[key].locked=true;save();}},5000);
       save(); render(new Date(y,m,1));
     });
 
@@ -246,29 +290,44 @@ function openPopup(key){
   document.getElementById('noteInput').value=e.note||'';
   document.getElementById('photoInput').value='';
   overlay.style.display='block'; popup.style.display='block';
+  setTimeout(()=>document.getElementById('noteInput').focus(),300);
 }
 overlay.onclick=()=>{popup.style.display='none';overlay.style.display='none';};
 
 document.getElementById('saveBtn').onclick=()=>{
   const owner=document.getElementById('ownerSel').value;
-  const note=document.getElementById('noteInput').value;
+  const note=document.getElementById('noteInput').value.trim();
   const file=document.getElementById('photoInput').files[0];
+
+  const finalize=(photoData)=>{
+    selected[currentEditKey]={owner,note,photo:photoData||null,locked:false};
+    clearTimeout(lockTimers[currentEditKey]);
+    lockTimers[currentEditKey]=setTimeout(()=>{
+      if(selected[currentEditKey]){
+        selected[currentEditKey].locked=true;
+        save();
+      }
+    },5000);
+    save();
+    popup.style.display='none';overlay.style.display='none';
+    render(new Date(monthPicker.value.split('-')[0],monthPicker.value.split('-')[1]-1,1));
+  };
+
   if(file){
     const reader=new FileReader();
-    reader.onload=()=>{
-      selected[currentEditKey]={owner,note,photo:reader.result,locked:false};
-      clearTimeout(lockTimers[currentEditKey]);
-      lockTimers[currentEditKey]=setTimeout(()=>{ if(selected[currentEditKey]){selected[currentEditKey].locked=true;save();}},5000);
-      save(); popup.style.display='none';overlay.style.display='none'; render(new Date(monthPicker.value.split('-')[0],monthPicker.value.split('-')[1]-1,1));
-    };
+    reader.onload=()=>finalize(reader.result);
     reader.readAsDataURL(file);
   } else {
-    const existing = selected[currentEditKey]||{};
-    selected[currentEditKey]={owner,note,photo:existing.photo||null,locked:false};
-    clearTimeout(lockTimers[currentEditKey]);
-    lockTimers[currentEditKey]=setTimeout(()=>{ if(selected[currentEditKey]){selected[currentEditKey].locked=true;save();}},5000);
-    save(); popup.style.display='none';overlay.style.display='none'; render(new Date(monthPicker.value.split('-')[0],monthPicker.value.split('-')[1]-1,1));
+    const existing=selected[currentEditKey]||{};
+    finalize(existing.photo||null);
   }
+};
+
+document.getElementById('closePhoto').onclick = () => {
+  document.getElementById('photoView').style.display='none';
+};
+document.getElementById('closeNote').onclick = () => {
+  document.getElementById('noteView').style.display='none';
 };
 
 document.getElementById('reportBtn').addEventListener('click',()=>{
@@ -301,7 +360,7 @@ document.getElementById('yearBtn').addEventListener('click',()=>{
   const blob=new Blob([csv],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='boyz_yearly_report.csv';a.click();
+  a.href=url;a.download='boyz_yearly_summary.csv';a.click();
   URL.revokeObjectURL(url);
 });
 </script>
