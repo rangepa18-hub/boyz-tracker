@@ -26,18 +26,30 @@
   .date-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
             font-weight:700;font-size:1.2rem;z-index:2;color:#222;pointer-events:none;}
   .paw-mark{
-    position:absolute;
-    width:9px;
-    height:9px;
-    background-size:contain;
-    background-repeat:no-repeat;
+    position:absolute;width:9px;height:9px;background-size:contain;background-repeat:no-repeat;
     pointer-events:none;
   }
   .paw-blue{background-image:url('paw-blue.png');}
   .paw-purple{background-image:url('paw-purple.png');}
+  .day-thumb{
+    position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:4px;object-fit:cover;z-index:3;
+  }
   .buttons{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
   button{background:#333;color:#fff;border:none;border-radius:10px;padding:10px 14px;
          font-size:1rem;cursor:pointer;}
+  #popup{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:#fff;border-radius:12px;padding:16px;width:80%;max-width:300px;
+    box-shadow:0 4px 10px rgba(0,0,0,.3);z-index:100;display:none;
+  }
+  #popup input[type="file"]{margin:6px 0;}
+  #popup textarea{width:100%;height:60px;margin:6px 0;resize:none;}
+  #popup select{width:100%;padding:4px;}
+  #popup button{margin-top:8px;width:100%;}
+  #overlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,.4);z-index:99;display:none;
+  }
 </style>
 </head>
 <body>
@@ -55,15 +67,13 @@
     <div class="legend-item">
       RP
       <div class="legend-paws">
-        <img src="paw-blue.png" alt="RP paw">
-        <img src="paw-blue.png" alt="RP paw">
+        <img src="paw-blue.png"><img src="paw-blue.png">
       </div>
     </div>
     <div class="legend-item">
       VR
       <div class="legend-paws">
-        <img src="paw-purple.png" alt="VR paw">
-        <img src="paw-purple.png" alt="VR paw">
+        <img src="paw-purple.png"><img src="paw-purple.png">
       </div>
     </div>
   </div>
@@ -76,13 +86,8 @@
   </div>
 
   <div class="weekdays">
-    <div class="day-name">Sun</div>
-    <div class="day-name">Mon</div>
-    <div class="day-name">Tue</div>
-    <div class="day-name">Wed</div>
-    <div class="day-name">Thu</div>
-    <div class="day-name">Fri</div>
-    <div class="day-name">Sat</div>
+    <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div>
+    <div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>
   </div>
 
   <div id="calendar" class="calendar"></div>
@@ -93,12 +98,27 @@
   <button id="yearBtn">📊 Yearly Report</button>
 </div>
 
+<div id="overlay"></div>
+<div id="popup">
+  <label>Who:</label>
+  <select id="ownerSel"><option value="rp">RP</option><option value="vr">VR</option></select>
+  <label>Message:</label>
+  <textarea id="noteInput" placeholder="Add a note..."></textarea>
+  <label>Photo:</label>
+  <input type="file" id="photoInput" accept="image/*">
+  <button id="saveBtn">Save</button>
+</div>
+
 <script>
 const cal=document.getElementById('calendar');
 const monthPicker=document.getElementById('month');
 const summary=document.getElementById('summary');
+const popup=document.getElementById('popup');
+const overlay=document.getElementById('overlay');
 let selected=JSON.parse(localStorage.getItem('boyzData'))||{};
 let pawPositions=JSON.parse(localStorage.getItem('pawPos'))||{};
+let currentEditKey=null;
+let lockTimers={};
 const now=new Date();
 monthPicker.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 render(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -107,20 +127,9 @@ monthPicker.addEventListener('change', e=>{
   const [y,m]=e.target.value.split('-');
   render(new Date(parseInt(y,10), parseInt(m,10)-1, 1));
 });
-
-function save(){
-  localStorage.setItem('boyzData',JSON.stringify(selected));
-  localStorage.setItem('pawPos',JSON.stringify(pawPositions));
-}
-
+function save(){localStorage.setItem('boyzData',JSON.stringify(selected));localStorage.setItem('pawPos',JSON.stringify(pawPositions));}
 function generatePositions(){
-  // Natural paw print layout: 2 upper, 2 lower with random jitter and rotation
-  const bases = [
-    {top: 25, left: 30},
-    {top: 25, left: 70},
-    {top: 65, left: 35},
-    {top: 65, left: 65}
-  ];
+  const bases=[{top:25,left:30},{top:25,left:70},{top:65,left:30},{top:65,left:70}];
   return bases.map(b=>({
     top: Math.max(15, Math.min(75, b.top + (Math.random()*8 - 4))),
     left: Math.max(15, Math.min(75, b.left + (Math.random()*8 - 4))),
@@ -146,10 +155,11 @@ function render(date){
     num.textContent=d;
     cell.appendChild(num);
 
-    if(selected[key]){
-      if(selected[key]==='rp') rpCount++; else vrCount++;
+    const entry = selected[key];
+    if(entry){
+      if(entry.owner==='rp') rpCount++; else if(entry.owner==='vr') vrCount++;
       if(!pawPositions[key]) pawPositions[key]=generatePositions();
-      const pawClass = selected[key]==='rp' ? 'paw-blue' : 'paw-purple';
+      const pawClass = entry.owner==='rp' ? 'paw-blue' : 'paw-purple';
       pawPositions[key].forEach(p=>{
         const mark=document.createElement('div');
         mark.className='paw-mark ' + pawClass;
@@ -158,20 +168,108 @@ function render(date){
         mark.style.transform=`rotate(${p.rot}deg)`;
         cell.appendChild(mark);
       });
+      if(entry.photo){
+        const img=document.createElement('img');
+        img.src=entry.photo;
+        img.className='day-thumb';
+        cell.appendChild(img);
+      }
     }
 
+    // long press logic: unlock if locked (2.5s) or edit if unlocked (0.7s)
+    let pressTimer;
+    cell.addEventListener('touchstart',()=>{ 
+      if(entry?.locked){
+        pressTimer=setTimeout(()=>{
+          if(confirm('Unlock this day to edit again?')){
+            selected[key].locked=false;
+            save(); render(new Date(y,m,1));
+          }
+        },2500);
+      } else {
+        pressTimer=setTimeout(()=>openPopup(key),700);
+      }
+    });
+    cell.addEventListener('touchend',()=>clearTimeout(pressTimer));
+    cell.addEventListener('mousedown',()=>{ 
+      if(entry?.locked){
+        pressTimer=setTimeout(()=>{
+          if(confirm('Unlock this day to edit again?')){
+            selected[key].locked=false;
+            save(); render(new Date(y,m,1));
+          }
+        },2500);
+      } else {
+        pressTimer=setTimeout(()=>openPopup(key),700);
+      }
+    });
+    cell.addEventListener('mouseup',()=>clearTimeout(pressTimer));
+
     cell.addEventListener('click',()=>{
-      if(!selected[key]){selected[key]='rp';if(!pawPositions[key]) pawPositions[key]=generatePositions();}
-      else if(selected[key]==='rp'){selected[key]='vr';if(!pawPositions[key]) pawPositions[key]=generatePositions();}
-      else{delete selected[key];delete pawPositions[key];}
+      if(entry?.locked){
+        if(entry.photo && confirm('View this photo full size?')){
+          const w=window.open();
+          w.document.write(`<img src="${entry.photo}" style="width:100%">`);
+        }
+        return;
+      }
+      if(!selected[key]){
+        selected[key]={owner:'rp',note:'',photo:null,locked:false};
+        if(!pawPositions[key]) pawPositions[key]=generatePositions();
+      } else if(selected[key].owner==='rp'){
+        selected[key].owner='vr';
+        selected[key].locked=false;
+        if(!pawPositions[key]) pawPositions[key]=generatePositions();
+      } else {
+        delete selected[key];
+        delete pawPositions[key];
+      }
+
+      // start or reset lock timer
+      clearTimeout(lockTimers[key]);
+      lockTimers[key]=setTimeout(()=>{
+        if(selected[key]){ selected[key].locked=true; save(); }
+      },5000);
+
       save(); render(new Date(y,m,1));
     });
 
     cal.appendChild(cell);
   }
-
   summary.textContent=`Days: ${rpCount} | Days: ${vrCount}`;
 }
+
+function openPopup(key){
+  currentEditKey=key;
+  const e=selected[key]||{owner:'rp',note:'',photo:null};
+  document.getElementById('ownerSel').value=e.owner;
+  document.getElementById('noteInput').value=e.note||'';
+  document.getElementById('photoInput').value='';
+  overlay.style.display='block'; popup.style.display='block';
+}
+overlay.onclick=()=>{popup.style.display='none';overlay.style.display='none';};
+
+document.getElementById('saveBtn').onclick=()=>{
+  const owner=document.getElementById('ownerSel').value;
+  const note=document.getElementById('noteInput').value;
+  const file=document.getElementById('photoInput').files[0];
+  if(file){
+    const reader=new FileReader();
+    reader.onload=()=>{
+      selected[currentEditKey]={owner,note,photo:reader.result,locked:false};
+      clearTimeout(lockTimers[currentEditKey]);
+      lockTimers[currentEditKey]=setTimeout(()=>{ if(selected[currentEditKey]){selected[currentEditKey].locked=true;save();}},5000);
+      save(); popup.style.display='none';overlay.style.display='none'; render(new Date(monthPicker.value.split('-')[0],monthPicker.value.split('-')[1]-1,1));
+    };
+    reader.readAsDataURL(file);
+  } else {
+    const existing = selected[currentEditKey]||{};
+    selected[currentEditKey]={owner,note,photo:existing.photo||null,locked:false};
+    clearTimeout(lockTimers[currentEditKey]);
+    lockTimers[currentEditKey]=setTimeout(()=>{ if(selected[currentEditKey]){selected[currentEditKey].locked=true;save();}},5000);
+    save(); popup.style.display='none';overlay.style.display='none'; render(new Date(monthPicker.value.split('-')[0],monthPicker.value.split('-')[1]-1,1));
+  }
+};
 
 document.getElementById('reportBtn').addEventListener('click',()=>{
   html2canvas(document.getElementById('captureArea'),{scale:2,useCORS:true}).then(c=>{
@@ -193,7 +291,7 @@ document.getElementById('yearBtn').addEventListener('click',()=>{
     const [y,m]=k.split('-');
     const ym=`${y}-${m}`;
     if(!totals[ym]) totals[ym]={RP:0,VR:0};
-    if(selected[k]==='rp') totals[ym].RP++; else totals[ym].VR++;
+    if(selected[k].owner==='rp') totals[ym].RP++; else if(selected[k].owner==='vr') totals[ym].VR++;
   }
   let csv='Year,Month,RP,VR\n';
   Object.keys(totals).sort().forEach(ym=>{
