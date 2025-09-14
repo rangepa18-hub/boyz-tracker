@@ -14,7 +14,7 @@
   h1{text-align:center;margin:10px 0;font-weight:500;font-family:"Helvetica Neue",Arial,sans-serif;}
   .legend{display:flex;justify-content:center;gap:60px;margin:12px 0 6px 0;}
   .legend-item{text-align:center;font-weight:700;}
-  .legend-paws svg{width:22px;height:22px;}
+  .legend-paws img{width:22px;height:22px;}
   .summary{text-align:center;margin:8px 0 10px 0;font-weight:600;}
   .controls{display:flex;justify-content:center;gap:10px;align-items:center;margin:6px 0 6px 0;}
   input[type="month"]{padding:4px 6px;font-size:0.95rem;}
@@ -27,10 +27,14 @@
             font-weight:700;font-size:1.2rem;z-index:2;color:#222;pointer-events:none;}
   .paw-mark{
     position:absolute;
-    width:14px;
-    height:14px;
+    width:18px;
+    height:18px;
+    background-size:contain;
+    background-repeat:no-repeat;
     pointer-events:none;
   }
+  .paw-blue{background-image:url('paw-blue.png');}
+  .paw-purple{background-image:url('paw-purple.png');}
   .buttons{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
   button{background:#333;color:#fff;border:none;border-radius:10px;padding:10px 14px;
          font-size:1rem;cursor:pointer;}
@@ -48,18 +52,18 @@
   <h1>Boyz Calendar</h1>
 
   <div class="legend">
-    <div class="legend-item legend-rp">
+    <div class="legend-item">
       RP
       <div class="legend-paws">
-        <svg viewBox="0 0 24 24" fill="#2196F3"><path d="M4 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3-5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4-10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3 5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/></svg>
-        <svg viewBox="0 0 24 24" fill="#2196F3"><path d="M4 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3-5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4-10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3 5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/></svg>
+        <img src="paw-blue.png" alt="RP paw">
+        <img src="paw-blue.png" alt="RP paw">
       </div>
     </div>
-    <div class="legend-item legend-vr">
+    <div class="legend-item">
       VR
       <div class="legend-paws">
-        <svg viewBox="0 0 24 24" fill="#9C27B0"><path d="M4 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3-5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4-10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3 5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/></svg>
-        <svg viewBox="0 0 24 24" fill="#9C27B0"><path d="M4 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3-5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4-10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3 5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/></svg>
+        <img src="paw-purple.png" alt="VR paw">
+        <img src="paw-purple.png" alt="VR paw">
       </div>
     </div>
   </div>
@@ -117,12 +121,6 @@ function generatePositions(){
   }));
 }
 
-function getPawSVG(color){
-  return `<svg viewBox="0 0 24 24" fill="${color}" width="14" height="14">
-  <path d="M4 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3-5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4-10c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm3 5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/>
-  </svg>`;
-}
-
 function render(date){
   cal.innerHTML='';
   const y=date.getFullYear(), m=date.getMonth();
@@ -144,13 +142,12 @@ function render(date){
     if(selected[key]){
       if(selected[key]==='rp') rpCount++; else vrCount++;
       if(!pawPositions[key]) pawPositions[key]=generatePositions();
-      const color = selected[key]==='rp' ? '#2196F3' : '#9C27B0';
+      const pawClass = selected[key]==='rp' ? 'paw-blue' : 'paw-purple';
       pawPositions[key].forEach(p=>{
         const mark=document.createElement('div');
-        mark.className='paw-mark';
+        mark.className='paw-mark ' + pawClass;
         mark.style.top=p.top+'%';
         mark.style.left=p.left+'%';
-        mark.innerHTML=getPawSVG(color);
         cell.appendChild(mark);
       });
     }
