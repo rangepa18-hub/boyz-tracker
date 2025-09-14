@@ -230,7 +230,7 @@ function render(date){
             selected[key].locked=false;
             save(); render(new Date(y,m,1));
           }
-        },2500);
+        },1500);
       } else {
         pressTimer=setTimeout(()=>openPopup(key),700);
       }
@@ -243,7 +243,7 @@ function render(date){
             selected[key].locked=false;
             save(); render(new Date(y,m,1));
           }
-        },2500);
+        },1500);
       } else {
         pressTimer=setTimeout(()=>openPopup(key),700);
       }
@@ -366,3 +366,4 @@ document.getElementById('yearBtn').addEventListener('click',()=>{
 </script>
 </body>
 </html>
+
